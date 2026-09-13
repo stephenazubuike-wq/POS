@@ -1,0 +1,6 @@
+{
+  "name": "GOLDPOS - POS Merchant Services Nigeria",
+  "description": "Compare and request POS terminals from leading providers including Moniepoint, PalmPay, and OPay for your business in Nigeria.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
