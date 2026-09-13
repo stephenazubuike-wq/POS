@@ -19,8 +19,10 @@ import {
   Shield,
   ArrowLeft,
   RefreshCw,
+  Mail,
 } from 'lucide-react';
 import { leadStorage } from '../services/leadStorage';
+import { emailService } from '../services/emailService';
 import { Lead, LeadStatus } from '../types';
 import { SITE_CONFIG } from '../config/siteConfig';
 
@@ -259,6 +261,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSite }) 
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] text-[10px] font-bold border border-[#D4AF37]/40">
                   Lead Management
+                </span>
+                <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-medium">
+                  <Mail className="w-2.5 h-2.5" />
+                  <span>Forwarding: {SITE_CONFIG.NOTIFICATION_EMAIL}</span>
                 </span>
               </div>
               <p className="text-[11px] text-stone-400 hidden sm:block">
@@ -587,6 +593,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSite }) 
                   <span className="block text-stone-400 font-semibold uppercase text-[10px]">WhatsApp</span>
                   <span className="text-emerald-400 font-bold font-mono">{selectedLead.whatsapp}</span>
                 </div>
+                {selectedLead.email && (
+                  <div>
+                    <span className="block text-stone-400 font-semibold uppercase text-[10px]">Applicant Email</span>
+                    <span className="text-white font-mono text-xs">{selectedLead.email}</span>
+                  </div>
+                )}
                 <div>
                   <span className="block text-stone-400 font-semibold uppercase text-[10px]">Business Type</span>
                   <span className="text-stone-300 font-medium">{selectedLead.businessType}</span>
@@ -666,18 +678,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToSite }) 
             </div>
 
             {/* Modal Bottom Actions */}
-            <div className="bg-[#141414] px-6 py-4 border-t border-white/10 flex items-center justify-between">
-              <a
-                href={`https://wa.me/${selectedLead.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(
-                  `Hello ${selectedLead.fullName}, this is ${SITE_CONFIG.brandName} POS merchant services regarding your ${selectedLead.preferredProvider} POS application for ${selectedLead.businessName}.`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>Chat On WhatsApp</span>
-              </a>
+            <div className="bg-[#141414] px-6 py-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <a
+                  href={`https://wa.me/${selectedLead.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(
+                    `Hello ${selectedLead.fullName}, this is ${SITE_CONFIG.brandName} POS merchant services regarding your ${selectedLead.preferredProvider} POS application for ${selectedLead.businessName}.`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Chat On WhatsApp</span>
+                </a>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    showToast('Sending to eduseydzhtech@gmail.com...');
+                    const res = await emailService.sendPOSRequestEmail(selectedLead);
+                    if (res.success) {
+                      showToast('Delivered to eduseydzhtech@gmail.com!');
+                    } else {
+                      showToast('Delivery note logged (Mailto ready)');
+                    }
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-stone-200 border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                  title="Forward complete details to eduseydzhtech@gmail.com"
+                >
+                  <Mail className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span>Forward to eduseydzhtech@gmail.com</span>
+                </button>
+              </div>
 
               <button
                 onClick={() => setSelectedLead(null)}

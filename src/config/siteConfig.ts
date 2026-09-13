@@ -13,7 +13,8 @@ export const SITE_CONFIG = {
   // Contact info placeholders (easily editable)
   PHONE_NUMBER: '+234 812 470 7269',
   PHONE_NUMBER_RAW: '+2348124707269',
-  EMAIL: 'support@goldpos.ng',
+  EMAIL: 'eduseydzhtech@gmail.com',
+  NOTIFICATION_EMAIL: 'eduseydzhtech@gmail.com',
   BUSINESS_LOCATION: 'Lagos, Nigeria (Nationwide deployment across all 36 states & FCT)',
   BUSINESS_HOURS: 'Monday – Saturday: 8:00 AM – 6:30 PM (WAT)',
   
@@ -275,3 +276,47 @@ export function getWhatsAppUrl(customMessage?: string): string {
   const message = encodeURIComponent(customMessage || SITE_CONFIG.DEFAULT_WHATSAPP_MESSAGE);
   return `https://wa.me/${number}?text=${message}`;
 }
+
+/**
+ * Helper to generate pre-filled mailto link with all POS request details mapped to target email
+ */
+export function getLeadEmailMailtoUrl(lead: {
+  id: string;
+  fullName: string;
+  phone: string;
+  whatsapp: string;
+  businessName: string;
+  businessType: string;
+  location: string;
+  preferredProvider: string;
+  existingPOS: string;
+  requirement: string;
+  additionalMessage?: string;
+}): string {
+  const subject = encodeURIComponent(`🚨 New POS Request Ref [${lead.id}] - ${lead.businessName} (${lead.preferredProvider} POS)`);
+  const body = encodeURIComponent(
+`NEW POS TERMINAL REQUEST
+========================
+Lead Reference ID: ${lead.id}
+Date & Time: ${new Date().toLocaleString()}
+
+MERCHANT / APPLICANT DETAILS:
+- Full Name: ${lead.fullName}
+- Phone Number: ${lead.phone}
+- WhatsApp Number: ${lead.whatsapp}
+- Business Name: ${lead.businessName}
+- Business Type: ${lead.businessType}
+- Business Location: ${lead.location}
+
+POS SPECIFICATIONS:
+- Preferred Provider: ${lead.preferredProvider} POS
+- Has Existing POS: ${lead.existingPOS}
+- Primary Requirement: ${lead.requirement}
+- Additional Message/Notes: ${lead.additionalMessage || 'None'}
+
+Target Delivery Email: ${SITE_CONFIG.NOTIFICATION_EMAIL}
+`
+  );
+  return `mailto:${SITE_CONFIG.NOTIFICATION_EMAIL}?subject=${subject}&body=${body}`;
+}
+

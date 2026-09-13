@@ -23,6 +23,7 @@ export interface Lead {
   fullName: string;
   phone: string;
   whatsapp: string;
+  email?: string;
   businessName: string;
   businessType: string;
   location: string;

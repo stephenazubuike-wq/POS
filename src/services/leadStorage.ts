@@ -136,6 +136,7 @@ export class LeadStorageService {
     fullName: string;
     phone: string;
     whatsapp: string;
+    email?: string;
     businessName: string;
     businessType: string;
     location: string;
@@ -155,6 +156,7 @@ export class LeadStorageService {
       fullName: data.fullName.trim(),
       phone: data.phone.trim(),
       whatsapp: data.whatsapp.trim() || data.phone.trim(),
+      email: data.email?.trim() || '',
       businessName: data.businessName.trim(),
       businessType: data.businessType,
       location: data.location.trim(),
@@ -228,6 +230,7 @@ export class LeadStorageService {
       'Full Name',
       'Phone',
       'WhatsApp',
+      'Email',
       'Business Name',
       'Business Type',
       'Location',
@@ -243,6 +246,7 @@ export class LeadStorageService {
       `"${l.fullName.replace(/"/g, '""')}"`,
       `"${l.phone}"`,
       `"${l.whatsapp}"`,
+      `"${l.email || ''}"`,
       `"${l.businessName.replace(/"/g, '""')}"`,
       `"${l.businessType}"`,
       `"${l.location.replace(/"/g, '""')}"`,

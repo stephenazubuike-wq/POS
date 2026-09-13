@@ -11,9 +11,13 @@ import {
   Phone as PhoneIcon,
   MapPin,
   HelpCircle,
+  Mail,
+  Check,
+  ExternalLink,
 } from 'lucide-react';
 import { leadStorage } from '../services/leadStorage';
-import { SITE_CONFIG, getWhatsAppUrl } from '../config/siteConfig';
+import { SITE_CONFIG, getWhatsAppUrl, getLeadEmailMailtoUrl } from '../config/siteConfig';
+import { emailService, EmailDispatchResult } from '../services/emailService';
 import { Lead } from '../types';
 import { analytics } from '../services/analytics';
 
@@ -34,6 +38,7 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
     fullName: '',
     phone: '',
     whatsapp: '',
+    email: '',
     businessName: '',
     businessType: initialBusinessType || '',
     location: initialLocation || '',
@@ -46,6 +51,7 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
 
   const [usePhoneForWhatsApp, setUsePhoneForWhatsApp] = useState(true);
   const [submittedLead, setSubmittedLead] = useState<Lead | null>(null);
+  const [emailStatus, setEmailStatus] = useState<EmailDispatchResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -75,7 +81,7 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
     }
   }, [initialLocation]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -110,10 +116,12 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
         ? formData.phone
         : formData.whatsapp || formData.phone;
 
+      // 1. Create lead record
       const newLead = leadStorage.createLead({
         fullName: formData.fullName,
         phone: formData.phone,
         whatsapp: whatsappNumber,
+        email: formData.email,
         businessName: formData.businessName,
         businessType: formData.businessType || 'General Business',
         location: formData.location,
@@ -122,6 +130,10 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
         requirement: formData.requirement || 'Standard POS for customer payments and transfers',
         additionalMessage: formData.additionalMessage,
       });
+
+      // 2. Dispatch all details directly to eduseydzhtech@gmail.com
+      const emailResult = await emailService.sendPOSRequestEmail(newLead);
+      setEmailStatus(emailResult);
 
       setSubmittedLead(newLead);
       if (onSuccess) onSuccess(newLead);
@@ -135,10 +147,12 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
 
   const handleResetForm = () => {
     setSubmittedLead(null);
+    setEmailStatus(null);
     setFormData({
       fullName: '',
       phone: '',
       whatsapp: '',
+      email: '',
       businessName: '',
       businessType: '',
       location: '',
@@ -202,41 +216,97 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
 
                 <div className="space-y-2">
                   <h3 className="text-2xl sm:text-3xl font-extrabold text-white">
-                    Request Received!
+                    Request Received & Sent!
                   </h3>
                   <p className="text-base text-stone-300 max-w-lg mx-auto leading-relaxed">
-                    Thank you, <strong className="text-white">{submittedLead.fullName}</strong>. Our POS representative will contact you shortly to discuss your request and next steps.
+                    Thank you, <strong className="text-white">{submittedLead.fullName}</strong>. Your POS request details have been dispatched to our onboarding email and logged for immediate processing.
                   </p>
                 </div>
 
-                {/* Reference Card */}
-                <div className="rounded-2xl bg-[#141414] border border-white/10 p-5 max-w-md mx-auto text-left text-xs space-y-2 text-stone-300">
-                  <div className="flex justify-between border-b border-white/10 pb-2">
-                    <span className="text-stone-400">Enquiry Reference:</span>
-                    <span className="font-mono font-bold text-[#D4AF37]">{submittedLead.id}</span>
+                {/* Email Dispatch Notification Banner */}
+                <div className="rounded-2xl bg-[#141414] border border-[#D4AF37]/30 p-4 max-w-lg mx-auto text-left space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-white">
+                      <Mail className="w-4 h-4 text-[#D4AF37]" />
+                      <span>Email Delivery Notification</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+                      <Check className="w-3 h-3" />
+                      <span>Dispatched</span>
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-stone-400">Business Name:</span>
-                    <span className="font-semibold text-white">{submittedLead.businessName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-stone-400">Preferred Provider:</span>
-                    <span className="font-semibold text-white">{submittedLead.preferredProvider} POS</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-stone-400">Location:</span>
-                    <span className="font-semibold text-white">{submittedLead.location}</span>
+                  <p className="text-xs text-stone-300 leading-relaxed">
+                    All submitted details, selections, and terminal requirements have been sent to:
+                  </p>
+                  <div className="px-3 py-1.5 rounded-lg bg-black/40 border border-white/10 font-mono text-xs text-[#D4AF37] font-semibold break-all">
+                    {SITE_CONFIG.NOTIFICATION_EMAIL}
                   </div>
                 </div>
 
-                {/* Direct WhatsApp acceleration CTA */}
-                <div className="pt-4 max-w-md mx-auto space-y-3">
+                {/* Reference Card with all submitted details */}
+                <div className="rounded-2xl bg-[#141414] border border-white/10 p-5 max-w-lg mx-auto text-left text-xs space-y-2.5 text-stone-300">
+                  <div className="flex justify-between items-center border-b border-white/10 pb-2.5">
+                    <span className="text-stone-400 font-semibold">Enquiry Reference:</span>
+                    <span className="font-mono font-bold text-[#D4AF37] text-sm">{submittedLead.id}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">Merchant Name:</span>
+                    <span className="font-semibold text-white">{submittedLead.fullName}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">Business Name:</span>
+                    <span className="font-semibold text-white">{submittedLead.businessName}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">Category:</span>
+                    <span className="text-stone-200">{submittedLead.businessType}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">Phone Number:</span>
+                    <span className="font-mono text-white">{submittedLead.phone}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">WhatsApp:</span>
+                    <span className="font-mono text-emerald-400">{submittedLead.whatsapp}</span>
+                  </div>
+                  {submittedLead.email && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-stone-400">Applicant Email:</span>
+                      <span className="font-mono text-stone-200">{submittedLead.email}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">Location:</span>
+                    <span className="font-semibold text-white">{submittedLead.location}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">Requested Provider:</span>
+                    <span className="font-bold text-[#D4AF37]">{submittedLead.preferredProvider} POS</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">Currently Has POS:</span>
+                    <span className="text-stone-200">{submittedLead.existingPOS}</span>
+                  </div>
+                  <div className="border-t border-white/10 pt-2 text-[11px] text-stone-400 space-y-1">
+                    <div className="font-semibold text-stone-300">Terminal Purpose:</div>
+                    <div className="text-stone-200 italic">{submittedLead.requirement}</div>
+                  </div>
+                  {submittedLead.additionalMessage && (
+                    <div className="border-t border-white/10 pt-2 text-[11px] text-stone-400 space-y-1">
+                      <div className="font-semibold text-stone-300">Additional Message:</div>
+                      <div className="text-stone-200 italic">"{submittedLead.additionalMessage}"</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Direct WhatsApp acceleration CTA & Email Backup */}
+                <div className="pt-4 max-w-lg mx-auto space-y-3">
                   <p className="text-xs text-stone-400">
                     Want faster processing? Connect directly with our on-duty representative on WhatsApp:
                   </p>
                   <a
                     href={getWhatsAppUrl(
-                      `Hello! I just submitted POS Request Ref: ${submittedLead.id} for "${submittedLead.businessName}" (${submittedLead.preferredProvider} POS). Please guide me on next steps.`
+                      `Hello! I just submitted POS Request Ref: ${submittedLead.id} for "${submittedLead.businessName}" (${submittedLead.preferredProvider} POS). My details were also sent to ${SITE_CONFIG.NOTIFICATION_EMAIL}. Please guide me on next steps.`
                     )}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -245,6 +315,15 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
                   >
                     <MessageSquare className="w-5 h-5" />
                     <span>Chat With Agent on WhatsApp Now</span>
+                  </a>
+
+                  {/* Mailto Backup Button */}
+                  <a
+                    href={getLeadEmailMailtoUrl(submittedLead)}
+                    className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-stone-300 hover:text-white font-medium text-xs border border-white/10 flex items-center justify-center gap-2 transition"
+                  >
+                    <Mail className="w-4 h-4 text-[#D4AF37]" />
+                    <span>Open Email App (Send Direct Backup Copy)</span>
                   </a>
 
                   <button
@@ -352,7 +431,7 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
                     </div>
                   </div>
 
-                  {!usePhoneForWhatsApp && (
+                  {!usePhoneForWhatsApp ? (
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-stone-300 mb-1.5">
                         WhatsApp Number
@@ -370,8 +449,29 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
                         />
                       </div>
                     </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-300 mb-1.5">
+                        Email Address <span className="text-stone-500 text-[11px] font-normal">(Optional)</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                          <Mail className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="e.g., merchant@gmail.com"
+                          className="w-full pl-10 pr-3.5 py-3 rounded-xl bg-[#141414] border border-white/15 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 text-sm text-white placeholder-stone-500 outline-none"
+                        />
+                      </div>
+                    </div>
                   )}
+                </div>
 
+                {/* 2 Column: Business Type & (Email if not displayed above, or Location) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-stone-300 mb-1.5">
                       Business Type
@@ -393,30 +493,71 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
                       <option value="Other" className="bg-[#1A1A1A]">Other Category</option>
                     </select>
                   </div>
+
+                  {!usePhoneForWhatsApp ? (
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-300 mb-1.5">
+                        Email Address <span className="text-stone-500 text-[11px] font-normal">(Optional)</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                          <Mail className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="e.g., merchant@gmail.com"
+                          className="w-full pl-10 pr-3.5 py-3 rounded-xl bg-[#141414] border border-white/15 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 text-sm text-white placeholder-stone-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-300 mb-1.5">
+                        Business Location (State & City) <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={formData.location}
+                          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                          placeholder="e.g., Ikeja, Lagos or Garki, Abuja"
+                          className="w-full pl-10 pr-3.5 py-3 rounded-xl bg-[#141414] border border-white/15 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 text-sm text-white placeholder-stone-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* 2 Column: Location & Preferred Provider */}
+                {/* 2 Column: Location (if not rendered above) & Preferred Provider */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-300 mb-1.5">
-                      Business Location (State & City) <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
-                        <MapPin className="w-4 h-4" />
+                  {!usePhoneForWhatsApp ? (
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-300 mb-1.5">
+                        Business Location (State & City) <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={formData.location}
+                          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                          placeholder="e.g., Ikeja, Lagos or Garki, Abuja"
+                          className="w-full pl-10 pr-3.5 py-3 rounded-xl bg-[#141414] border border-white/15 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 text-sm text-white placeholder-stone-500 outline-none"
+                        />
                       </div>
-                      <input
-                        type="text"
-                        required
-                        value={formData.location}
-                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                        placeholder="e.g., Ikeja, Lagos or Garki, Abuja"
-                        className="w-full pl-10 pr-3.5 py-3 rounded-xl bg-[#141414] border border-white/15 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 text-sm text-white placeholder-stone-500 outline-none"
-                      />
                     </div>
-                  </div>
+                  ) : null}
 
-                  <div>
+                  <div className={usePhoneForWhatsApp ? 'sm:col-span-2' : ''}>
                     <label className="block text-xs font-bold uppercase tracking-wider text-stone-300 mb-1.5">
                       Preferred POS Provider
                     </label>
@@ -495,6 +636,24 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
                   />
                 </div>
 
+                {/* Direct Email Mapping Notice Banner */}
+                <div className="rounded-xl bg-[#141414] border border-white/10 p-3.5 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 text-stone-300">
+                    <div className="w-7 h-7 rounded-lg bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center shrink-0">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-white">Direct Email Delivery</div>
+                      <div className="text-[11px] text-stone-400">
+                        All submitted details are routed immediately to: <span className="font-mono text-[#D4AF37] font-bold">{SITE_CONFIG.NOTIFICATION_EMAIL}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold shrink-0">
+                    Active
+                  </span>
+                </div>
+
                 {/* Submit Button */}
                 <div className="pt-2">
                   <motion.button
@@ -505,7 +664,7 @@ export const POSRequestForm: React.FC<POSRequestFormProps> = ({
                     className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#DFBF55] to-[#B8860B] text-[#111111] font-extrabold text-base shadow-lg shadow-[#D4AF37]/20 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
                   >
                     <Send className="w-5 h-5" />
-                    <span>{isSubmitting ? 'Processing Request...' : 'Submit POS Request'}</span>
+                    <span>{isSubmitting ? 'Sending Request to Email...' : 'Submit POS Request'}</span>
                   </motion.button>
                 </div>
 
